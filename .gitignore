@@ -1,0 +1,14 @@
+
+query_data/
+
+query_data_dev/
+
+query_data_dev_filtered/
+
+query_data_filtered/
+
+model/__pycache__/
+
+*.pickle
+
+.DS_Store

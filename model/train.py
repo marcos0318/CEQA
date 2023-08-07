@@ -1,8 +1,8 @@
 import argparse
-from gqe import GQE, SemanticGQE, ConstraintGQE
-from q2p import Q2P, SemanticQ2P, ConstraintQ2P
-from mlp import MLPMixerReasoner, MLPReasoner, SemanticMLPReasoner, ConstraintMLPReasoner
-from fuzzqe import FuzzQE, ConstraintFuzzQE
+from gqe import GQE, SemanticGQE, ConstraintGQE, ConstraintGQENoMLP, ConstraintGQERandomInput
+from q2p import Q2P, SemanticQ2P, ConstraintQ2P, ConstraintQ2PNoMLP, ConstraintQ2PNoMLPRandomInput
+from mlp import MLPMixerReasoner, MLPReasoner, SemanticMLPReasoner, ConstraintMLPReasoner, ConstraintMLPReasonerNoMLP, ConstraintMLPReasonerRandomInput
+from fuzzqe import FuzzQE, ConstraintFuzzQE, ConstraintFuzzQENoMLP, ConstraintFuzzQERandomInput
 
 
 import torch
@@ -179,6 +179,31 @@ if __name__ == "__main__":
   
     elif args.model == "fuzzqe_con":
         model = ConstraintFuzzQE(num_entities=nentity, num_relations=nrelation, embedding_size=args.entity_space_dim)
+
+    elif args.model == "gqe_con_no_mlp":
+        model = ConstraintGQENoMLP(num_entities=nentity, num_relations=nrelation, embedding_size=args.entity_space_dim, use_old_loss=args.old_loss_fnt)
+    
+    elif args.model == "q2p_con_no_mlp":
+        model = ConstraintQ2PNoMLP(num_entities=nentity, num_relations=nrelation, embedding_size=args.entity_space_dim)
+    
+    elif args.model == "mlp_con_no_mlp":
+        model = ConstraintMLPReasonerNoMLP(num_entities=nentity, num_relations=nrelation, embedding_size=args.entity_space_dim)
+    
+    elif args.model == "fuzzqe_con_no_mlp":
+        model = ConstraintFuzzQENoMLP(num_entities=nentity, num_relations=nrelation, embedding_size=args.entity_space_dim)
+
+    elif args.model == "gqe_con_rand":
+        model = ConstraintGQERandomInput(num_entities=nentity, num_relations=nrelation, embedding_size=args.entity_space_dim, use_old_loss=args.old_loss_fnt)
+    
+    elif args.model == "q2p_con_rand":
+        model = ConstraintQ2PNoMLPRandomInput(num_entities=nentity, num_relations=nrelation, embedding_size=args.entity_space_dim)
+    
+    elif args.model == "mlp_con_rand":
+        model = ConstraintMLPReasonerRandomInput(num_entities=nentity, num_relations=nrelation, embedding_size=args.entity_space_dim)
+    
+    elif args.model == "fuzzqe_con_rand":
+        model = ConstraintFuzzQERandomInput(num_entities=nentity, num_relations=nrelation, embedding_size=args.entity_space_dim)
+    
 
     else:
         raise NotImplementedError

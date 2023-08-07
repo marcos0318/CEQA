@@ -5,7 +5,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from dataloader import TestDataset, ValidDataset, TrainDataset, SingledirectionalOneShotIterator
-from model import IterativeModel, LabelSmoothingLoss, ConstraintFuser
+from model import IterativeModel, LabelSmoothingLoss, ConstraintFuser, ConstraintFuserNoMLP, ConstraintFuserRandomInput
 import numpy as np
 import math
 import pickle
@@ -507,62 +507,20 @@ class ConstraintQ2P(Q2P):
             return self.loss_fnt(this_query_result, label)
 
 
-    # def forward(self, batched_structured_query, constraint_lists, label=None):
+class ConstraintQ2PNoMLP(ConstraintQ2P):
 
-    #     assert batched_structured_query[0] in ["p", "e", "i"]
+    def __init__(self, num_entities, num_relations, embedding_size, num_particles=2, label_smoothing=0.3, dropout_rate=0.3):
+        super().__init__(num_entities, num_relations, embedding_size, num_particles, label_smoothing, dropout_rate)
 
-    #     if batched_structured_query[0] == "p":
-            
-            
+        self.constraint_fuser = ConstraintFuserNoMLP(self.relation_embedding, self.entity_embedding, num_entities, num_relations, embedding_size)
 
-    #         sub_query_result = self.forward(batched_structured_query[2], constraint_lists)
-    #         if batched_structured_query[2][0] == 'e':
-    #             this_query_result = self.projection(batched_structured_query[1], sub_query_result)
-    #         else:
-    #             this_query_result = self.higher_projection(batched_structured_query[1], sub_query_result)
+class ConstraintQ2PNoMLPRandomInput(ConstraintQ2P):
 
+    def __init__(self, num_entities, num_relations, embedding_size, num_particles=2, label_smoothing=0.3, dropout_rate=0.3):
+        super().__init__(num_entities, num_relations, embedding_size, num_particles, label_smoothing, dropout_rate)
 
-    #         flat_query_result = this_query_result.mean(dim=1)
-    #         print(flat_query_result.shape)
-    #         print(this_query_result.shape)
-            
-    #         flat_query_result = self.constraint_fuser(flat_query_result, constraint_lists)
+        self.constraint_fuser = ConstraintFuserRandomInput(self.relation_embedding, self.entity_embedding, num_entities, num_relations, embedding_size)
 
-    #         this_query_result = flat_query_result.unsqueeze(1) + this_query_result
-    #         print(this_query_result.shape)
-
-    #     elif batched_structured_query[0] == "i":
-    #         sub_query_result_list = []
-    #         for _i in range(1, len(batched_structured_query)):
-    #             sub_query_result = self.forward(batched_structured_query[_i], constraint_lists)
-    #             sub_query_result_list.append(sub_query_result)
-
-    #         this_query_result = self.intersection(sub_query_result_list)
-
-    #         flat_query_result = this_query_result.mean(dim=1)
-    #         flat_query_result = self.constraint_fuser(flat_query_result, constraint_lists)
-
-    #         this_query_result = flat_query_result.unsqueeze(1) + this_query_result
-
-
-    #     elif batched_structured_query[0] == "e":
-
-    #         entity_ids = torch.tensor(batched_structured_query[1])
-    #         entity_ids = entity_ids.to(self.entity_embedding.weight.device)
-    #         this_query_result = self.entity_embedding(entity_ids)
-
-    #     else:
-    #         this_query_result = None
-
-    #     if label is None:
-    #         return this_query_result
-
-    #     else:
-            
-    #         return self.loss_fnt(this_query_result, label)
-            
-
-    
 
 
 if __name__ == "__main__":
@@ -643,14 +601,7 @@ if __name__ == "__main__":
         nrelation = int(entrel[1].split(' ')[-1])
     
 
-    # Load sentences & embeddings from disc
-    with open('../_eventuality_embeddings.pkl', "rb") as fIn:
-        eventualities_dict = pickle.load(fIn)
-
-    with open('../_relation_embeddings.pkl', "rb") as fIn:
-        relations_dict = pickle.load(fIn)
-
-
+    # Load sentences & embeddings from di
 
     with open("../query_data_filtered/eventuality2id.json", "r") as f:
         eventuality2id = json.load(f)
@@ -661,14 +612,13 @@ if __name__ == "__main__":
         id2relation = {v: k for k, v in relation2id.items()}
 
     q2p_model = ConstraintQ2P(num_entities=nentity, num_relations=nrelation, embedding_size=384)
-    # if torch.cuda.is_available():
-    #     q2p_model = q2p_model.cuda()
-    
-    semantic_q2p_model = SemanticQ2P(num_entities=nentity, num_relations=nrelation, embedding_size=384,
-                                    eventualities_dict=eventualities_dict, relations_dict=relations_dict, id2eventuality=id2eventuality, id2relation=id2relation )
 
-    if torch.cuda.is_available():
-        semantic_q2p_model = semantic_q2p_model.cuda()
+    q2p_model_r1 = ConstraintQ2PNoMLP(num_entities=nentity, num_relations=nrelation, embedding_size=384)
+    q2p_model_r2 = ConstraintQ2PNoMLPRandomInput(num_entities=nentity, num_relations=nrelation, embedding_size=384)
+
+
+  
+   
 
     batch_size = 5
     train_iterators = {}
@@ -699,10 +649,17 @@ if __name__ == "__main__":
         loss = q2p_model(batched_query,all_constraints, positive_sample)
         print(loss)
 
-        query_embedding = semantic_q2p_model(batched_query)
+        query_embedding = q2p_model_r1(batched_query,  all_constraints)
         print(query_embedding.shape)
-        loss = semantic_q2p_model(batched_query, positive_sample)
+        loss = q2p_model_r1(batched_query,all_constraints, positive_sample)
         print(loss)
+
+        query_embedding = q2p_model_r2(batched_query,  all_constraints)
+        print(query_embedding.shape)
+        loss = q2p_model_r2(batched_query,all_constraints, positive_sample)
+        print(loss)
+
+       
 
 
     validation_loaders = {}
@@ -733,9 +690,15 @@ if __name__ == "__main__":
             result_logs = q2p_model.evaluate_generalization(query_embedding, train_answers, valid_answers)
             print(result_logs)
 
-            query_embedding = semantic_q2p_model(batched_query)
-            result_logs = semantic_q2p_model.evaluate_generalization(query_embedding, train_answers, valid_answers)
+
+            query_embedding = q2p_model_r1(batched_query,  all_constraints)
+            result_logs = q2p_model_r1.evaluate_generalization(query_embedding, train_answers, valid_answers)
             print(result_logs)
+
+            query_embedding = q2p_model_r2(batched_query,  all_constraints)
+            result_logs = q2p_model_r2.evaluate_generalization(query_embedding, train_answers, valid_answers)
+            print(result_logs)
+
 
 
             break
@@ -765,10 +728,16 @@ if __name__ == "__main__":
             result_logs = q2p_model.evaluate_generalization(query_embedding, valid_answers, test_answers)
             print(result_logs)
 
-            query_embedding = semantic_q2p_model(batched_query)
-            result_logs = semantic_q2p_model.evaluate_generalization(query_embedding, valid_answers, test_answers)
+            query_embedding = q2p_model_r1(batched_query,  all_constraints)
+            result_logs = q2p_model_r1.evaluate_generalization(query_embedding, valid_answers, test_answers)
             print(result_logs)
 
+            query_embedding = q2p_model_r2(batched_query,  all_constraints)
+            result_logs = q2p_model_r2.evaluate_generalization(query_embedding, valid_answers, test_answers)
+            print(result_logs)
+
+
+    
             print(train_answers[0])
             print([len(_) for _ in train_answers])
             print([len(_) for _ in valid_answers])

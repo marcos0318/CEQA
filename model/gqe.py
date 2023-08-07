@@ -14,7 +14,7 @@ import numpy as np
 # from .model import IterativeModel
 import math
 
-from model import ConstraintFuser
+from model import ConstraintFuser, ConstraintFuserNoMLP, ConstraintFuserRandomInput
 
 class GQE(model.IterativeModel):
     def __init__(self, num_entities, num_relations, embedding_size, label_smoothing=0.1, use_old_loss=False,negative_size=128):
@@ -44,7 +44,6 @@ class GQE(model.IterativeModel):
         :return: [batch_size, num_entities]
         """
 
-        # TODO: fix the scoring function here, this function is not correct
         query_scores = self.decoder(query_encoding)
         return query_scores
 
@@ -251,7 +250,22 @@ class ConstraintGQE(GQE):
                 return self.old_loss_fnt(this_query_result, label)
     
 
-    
+class ConstraintGQENoMLP(ConstraintGQE):
+
+    def __init__(self, num_entities, num_relations, embedding_size, label_smoothing=0.3, use_old_loss=False, negative_size=128):
+        super().__init__(num_entities, num_relations, embedding_size, label_smoothing, use_old_loss, negative_size)
+
+        self.constraint_fuser = ConstraintFuserNoMLP(self.relation_embedding, self.entity_embedding, num_entities, num_relations, embedding_size)
+
+
+class ConstraintGQERandomInput(ConstraintGQE):
+
+    def __init__(self, num_entities, num_relations, embedding_size, label_smoothing=0.3, use_old_loss=False, negative_size=128):
+        super().__init__(num_entities, num_relations, embedding_size, label_smoothing, use_old_loss, negative_size)
+
+        self.constraint_fuser = ConstraintFuserRandomInput(self.relation_embedding, self.entity_embedding, num_entities, num_relations, embedding_size)
+
+
 
 if __name__ == "__main__":
 
@@ -329,15 +343,6 @@ if __name__ == "__main__":
         nrelation = int(entrel[1].split(' ')[-1])
     
 
-    # Load sentences & embeddings from disc
-    with open('../_eventuality_embeddings.pkl', "rb") as fIn:
-        eventualities_dict = pickle.load(fIn)
-
-    with open('../_relation_embeddings.pkl', "rb") as fIn:
-        relations_dict = pickle.load(fIn)
-
-
-
     with open("../query_data_filtered/eventuality2id.json", "r") as f:
         eventuality2id = json.load(f)
         id2eventuality = {v: k for k, v in eventuality2id.items()}
@@ -347,13 +352,17 @@ if __name__ == "__main__":
         id2relation = {v: k for k, v in relation2id.items()}
 
     gqe_model = ConstraintGQE(num_entities=nentity, num_relations=nrelation, embedding_size=384,use_old_loss=False)
+    gqe_model_r1 = ConstraintGQENoMLP(num_entities=nentity, num_relations=nrelation, embedding_size=384,use_old_loss=False)
+    gqe_model_r2 = ConstraintGQERandomInput(num_entities=nentity, num_relations=nrelation, embedding_size=384,use_old_loss=False)
+
+
     if torch.cuda.is_available():
         gqe_model = gqe_model.cuda()
+        gqe_model_r1 = gqe_model_r1.cuda()
+        gqe_model_r2 = gqe_model_r2.cuda()
 
-
-    semantic_gqe_model = SemanticGQE(num_entities=nentity, num_relations=nrelation, embedding_size=384,use_old_loss=False, 
-                                    eventualities_dict=eventualities_dict, relations_dict=relations_dict, id2eventuality=id2eventuality, id2relation=id2relation )
-
+    
+    
     batch_size = 5
     train_iterators = {}
     print("train_data_dict.keys()", train_data_dict.keys())
@@ -391,8 +400,14 @@ if __name__ == "__main__":
         query_embedding = gqe_model(batched_query, all_constraints)
         print(query_embedding.shape)
         loss = gqe_model(batched_query, all_constraints, positive_sample)
-        loss = semantic_gqe_model(batched_query, positive_sample)
+
+        loss_r1 = gqe_model_r1(batched_query, all_constraints, positive_sample)
+        loss_r2 = gqe_model_r2(batched_query, all_constraints, positive_sample)
+        
+       
         print(loss)
+        print(loss_r1)
+        print(loss_r2)
 
     validation_loaders = {}
     for query_type, query_answer_dict in valid_data_dict.items():
@@ -435,12 +450,15 @@ if __name__ == "__main__":
             result_logs = gqe_model.evaluate_generalization(query_embedding, train_answers, valid_answers)
             print(result_logs)
 
-            query_embedding = semantic_gqe_model(batched_query)
-            # result_logs = gqe_model.evaluate_entailment(query_embedding, train_answers)
-            # print(result_logs)
-
-            result_logs = semantic_gqe_model.evaluate_generalization(query_embedding, train_answers, valid_answers)
+            query_embedding = gqe_model_r1(batched_query, all_constraints)
+            result_logs = gqe_model_r1.evaluate_generalization(query_embedding, train_answers, valid_answers)
             print(result_logs)
+
+            query_embedding = gqe_model_r2(batched_query, all_constraints)
+            result_logs = gqe_model_r2.evaluate_generalization(query_embedding, train_answers, valid_answers)
+            print(result_logs)
+
+           
             break
 
     test_loaders = {}
@@ -466,30 +484,28 @@ if __name__ == "__main__":
 
             all_constraints = [ occurential_constraints[i] + temporal_constraints[i] for i in range(len(temporal_constraints))]
 
-            query_embedding = gqe_model(batched_query, all_constraints)
-
-            # print(train_answers)
-            
-            # result_logs = gqe_model.evaluate_entailment(query_embedding, train_answers)
-            # print(result_logs)
             print("is_temporal", is_temporal)
             print("is_occurential", is_occurential)
 
             print("temporal_constraints", temporal_constraints)
             print("occurential_constraints", occurential_constraints)
 
+            query_embedding = gqe_model(batched_query, all_constraints)
+
 
             result_logs = gqe_model.evaluate_generalization(query_embedding, valid_answers, test_answers)
             print(result_logs)
 
-            query_embedding = semantic_gqe_model(batched_query)
-            # result_logs = gqe_model.evaluate_entailment(query_embedding, train_answers)
-            # print(result_logs)
-            result_logs = semantic_gqe_model.evaluate_generalization(query_embedding, valid_answers, test_answers)
+            query_embedding = gqe_model_r1(batched_query, all_constraints)
+            result_logs = gqe_model_r1.evaluate_generalization(query_embedding, valid_answers, test_answers)
 
-            print(train_answers[0])
-            print([len(_) for _ in train_answers])
-            print([len(_) for _ in valid_answers])
-            print([len(_) for _ in test_answers])
+            print(result_logs)
+
+            query_embedding = gqe_model_r2(batched_query, all_constraints)
+            result_logs = gqe_model_r2.evaluate_generalization(query_embedding, valid_answers, test_answers)
+            print(result_logs)
+
+           
+          
 
             break

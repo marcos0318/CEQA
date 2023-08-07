@@ -449,11 +449,137 @@ class ConstraintFuser(nn.Module):
         # print(query_embedding.shape)
         return pooled_relation_tail_embedding + query_embedding.squeeze(1)
 
+
+class ConstraintFuserNoMLP(ConstraintFuser):
+
+    def forward(self, query_embedding, constraint_list):
+        """
+        query_embedding: Batch_size, embedding_size
+        """
+
+        # print(constraint_list)
+        max_constraint_num = max([len(_) for _ in constraint_list])
+        constraint_num = len(constraint_list)
+
+        for constraint in constraint_list:
+            constraint += [[self.num_entity, self.num_entity, self.num_relations]] * (max_constraint_num - len(constraint))
+
+        
+        # Batch_size, max_constraint_num, 3
+        constraint_tensor = torch.tensor(constraint_list).to(query_embedding.device)
+
+        
+        # Batch_size, max_constraint_num
+        contraints_head_tensor = constraint_tensor[:, :, 0]
+        contraints_tail_tensor = constraint_tensor[:, :, 1]
+        contraints_relation_tensor = constraint_tensor[:, :, 2]
+
+        # print(contraints_head_tensor.shape)
+        # print(contraints_tail_tensor.shape)
+        # print(contraints_relation_tensor.shape)
+
+        # Batch_size, max_constraint_num, embedding_size
+        contraints_head_embedding = self.fused_entity_embedding(contraints_head_tensor)
+        contraints_tail_embedding = self.fused_entity_embedding(contraints_tail_tensor)
+        contraints_relation_embedding = self.fused_relation_embedding(contraints_relation_tensor)
+
+        # print(contraints_head_embedding.shape)
+        # print(contraints_tail_embedding.shape)
+        # print(contraints_relation_embedding.shape)
+
+        # Batch_size, max_constraint_num, embedding_size
+        query_embedding = query_embedding.unsqueeze(1)
+
+        # print(query_embedding.shape)
+
+        # Batch_size, max_constraint_num
+        head_score =  torch.sum(query_embedding * contraints_head_embedding, dim=-1)
+
+        # print(head_score.shape)
+        relation_tail_embedding = contraints_tail_embedding + contraints_relation_embedding
+
+        # Batch_size, max_constraint_num, embedding_size
+        weighted_relation_tail_embedding = head_score.unsqueeze(-1) * relation_tail_embedding
+        # print(weighted_relation_tail_embedding.shape)
+
+        # Batch_size, embedding_size
+        pooled_relation_tail_embedding = torch.sum(weighted_relation_tail_embedding, dim=1)
+
+        # pooled_relation_tail_embedding = self.ffn(pooled_relation_tail_embedding)
+
+        # print(query_embedding.shape)
+        return pooled_relation_tail_embedding + query_embedding.squeeze(1)
+
+
+class ConstraintFuserRandomInput(ConstraintFuser):
+
+    def forward(self, query_embedding, constraint_list):
+
+
+
+        max_constraint_num = max([len(_) for _ in constraint_list])
+        constraint_num = len(constraint_list)
+
+        for constraint in constraint_list:
+            constraint += [[self.num_entity, self.num_entity, self.num_relations]] * (max_constraint_num - len(constraint))
+
+        
+        # Batch_size, max_constraint_num, 3
+        constraint_tensor = torch.tensor(constraint_list).to(query_embedding.device)
+
+        
+        # Batch_size, max_constraint_num
+        contraints_head_tensor = constraint_tensor[:, :, 0]
+        contraints_tail_tensor = constraint_tensor[:, :, 1]
+        contraints_relation_tensor = constraint_tensor[:, :, 2]
+
+        dummy_contraints_head_tensor = torch.randint(0, self.num_entity, (constraint_num, max_constraint_num)).to(query_embedding.device)
+        dummy_contraints_tail_tensor = torch.randint(0, self.num_entity, (constraint_num, max_constraint_num)).to(query_embedding.device)
+        dummy_contraints_relation_tensor = torch.randint(0, self.num_relations, (constraint_num, max_constraint_num)).to(query_embedding.device)
+
+        contraints_head_tensor = dummy_contraints_head_tensor
+        contraints_tail_tensor = dummy_contraints_tail_tensor
+        contraints_relation_tensor = dummy_contraints_relation_tensor
+
+
+
+        # Batch_size, max_constraint_num, embedding_size
+        contraints_head_embedding = self.fused_entity_embedding(contraints_head_tensor)
+        contraints_tail_embedding = self.fused_entity_embedding(contraints_tail_tensor)
+        contraints_relation_embedding = self.fused_relation_embedding(contraints_relation_tensor)
+
+
+        # Batch_size, max_constraint_num, embedding_size
+        query_embedding = query_embedding.unsqueeze(1)
+
+        # print(query_embedding.shape)
+
+        # Batch_size, max_constraint_num
+        head_score =  torch.sum(query_embedding * contraints_head_embedding, dim=-1)
+
+        # print(head_score.shape)
+        relation_tail_embedding = contraints_tail_embedding + contraints_relation_embedding
+
+        # Batch_size, max_constraint_num, embedding_size
+        weighted_relation_tail_embedding = head_score.unsqueeze(-1) * relation_tail_embedding
+        # print(weighted_relation_tail_embedding.shape)
+
+        # Batch_size, embedding_size
+        pooled_relation_tail_embedding = torch.sum(weighted_relation_tail_embedding, dim=1)
+
+        pooled_relation_tail_embedding = self.ffn(pooled_relation_tail_embedding)
+
+        # print(pooled_relation_tail_embedding.shape)
+        # print(query_embedding.shape)
+        return pooled_relation_tail_embedding + query_embedding.squeeze(1)
+
+
 if __name__ == "__main__":
 
     train_data_path = "./FB15k-237-betae_train_queries.json"
     valid_data_path = "./FB15k-237-betae_valid_queries.json"
     test_data_path = "./FB15k-237-betae_test_queries.json"
+    
     with open(train_data_path, "r") as fin:
         train_data_dict = json.load(fin)
 

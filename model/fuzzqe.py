@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 from dataloader import TestDataset, ValidDataset, TrainDataset, SingledirectionalOneShotIterator
 from model import IterativeModel, LabelSmoothingLoss
-from model import ConstraintFuser
+from model import ConstraintFuser, ConstraintFuserNoMLP, ConstraintFuserRandomInput
 
 
 class FuzzQE(IterativeModel):
@@ -204,6 +204,7 @@ class ConstraintFuzzQE(FuzzQE):
 
         entity_embedding = self.entity_embedding
         relation_embedding = nn.Embedding(num_relations, embedding_size) 
+        self.relation_embedding = relation_embedding
         self.constraint_fuser = ConstraintFuser(relation_embedding, entity_embedding, num_entities, num_relations, embedding_size)
 
 
@@ -250,7 +251,19 @@ class ConstraintFuzzQE(FuzzQE):
 
             return self.loss_fnt(this_query_result, label)
 
+class ConstraintFuzzQENoMLP(ConstraintFuzzQE):
 
+    def __init__(self, num_entities, num_relations, embedding_size = 500, K = 30, label_smoothing=0.3):
+
+        super(ConstraintFuzzQENoMLP, self).__init__(num_entities, num_relations, embedding_size, K, label_smoothing)
+        self.constraint_fuser = ConstraintFuserNoMLP(self.relation_embedding, self.entity_embedding, num_entities, num_relations, embedding_size)
+
+class ConstraintFuzzQERandomInput(ConstraintFuzzQE):
+
+    def __init__(self, num_entities, num_relations, embedding_size = 500, K = 30, label_smoothing=0.3):
+
+        super(ConstraintFuzzQERandomInput, self).__init__(num_entities, num_relations, embedding_size, K, label_smoothing)
+        self.constraint_fuser = ConstraintFuserRandomInput(self.relation_embedding, self.entity_embedding, num_entities, num_relations, embedding_size)
 
 
 if __name__ == "__main__":
@@ -346,14 +359,19 @@ if __name__ == "__main__":
         fuzzqe_model = fuzzqe_model.cuda()
     
     fuzzqe_con_model = ConstraintFuzzQE(num_entities=nentity, num_relations=nrelation, embedding_size=300)
+    fuzzqe_con_model_r1 = ConstraintFuzzQENoMLP(num_entities=nentity, num_relations=nrelation, embedding_size=300)
+    fuzzqe_con_model_r2 = ConstraintFuzzQERandomInput(num_entities=nentity, num_relations=nrelation, embedding_size=300)
+
     if torch.cuda.is_available():
         fuzzqe_con_model = fuzzqe_con_model.cuda()
+        fuzzqe_con_model_r1 = fuzzqe_con_model_r1.cuda()
+        fuzzqe_con_model_r2 = fuzzqe_con_model_r2.cuda()
 
     batch_size = 5
     train_iterators = {}
     for query_type, query_answer_dict in train_data_dict.items():
 
-        
+   
         print("====================================")
         print(query_type)
 
@@ -384,6 +402,16 @@ if __name__ == "__main__":
         loss = fuzzqe_con_model(batched_query, all_constraints, positive_sample)
         print(loss)
 
+        query_embedding = fuzzqe_con_model_r1(batched_query, all_constraints)
+        print(query_embedding.shape)
+        loss = fuzzqe_con_model_r1(batched_query, all_constraints, positive_sample)
+        print(loss)
+
+        query_embedding = fuzzqe_con_model_r2(batched_query, all_constraints)
+        print(query_embedding.shape)
+        loss = fuzzqe_con_model_r2(batched_query, all_constraints, positive_sample)
+        print(loss)
+
     validation_loaders = {}
     for query_type, query_answer_dict in valid_data_dict.items():
 
@@ -409,8 +437,7 @@ if __name__ == "__main__":
             print([len(_) for _ in valid_answers])
 
             query_embedding = fuzzqe_model(batched_query)
-            # result_logs = fuzzqe_model.evaluate_entailment(query_embedding, train_answers)
-            # print(result_logs)
+
 
             result_logs = fuzzqe_model.evaluate_generalization(query_embedding, train_answers, valid_answers)
             print(result_logs)
@@ -418,10 +445,20 @@ if __name__ == "__main__":
             all_constraints = [ occurential_constraints[i] + temporal_constraints[i] for i in range(len(temporal_constraints))]
 
             query_embedding = fuzzqe_con_model(batched_query, all_constraints)
-            # result_logs = fuzzqe_model.evaluate_entailment(query_embedding, train_answers)
-            # print(result_logs)
-
+           
             result_logs = fuzzqe_con_model.evaluate_generalization(query_embedding, train_answers, valid_answers)
+            print(result_logs)
+
+            query_embedding = fuzzqe_con_model_r1(batched_query, all_constraints)
+            print(query_embedding.shape)
+
+            result_logs = fuzzqe_con_model_r1.evaluate_generalization(query_embedding, train_answers, valid_answers)
+            print(result_logs)
+
+            query_embedding = fuzzqe_con_model_r2(batched_query, all_constraints)
+            print(query_embedding.shape)
+
+            result_logs = fuzzqe_con_model_r2.evaluate_generalization(query_embedding, train_answers, valid_answers)
             print(result_logs)
 
             break
@@ -448,9 +485,7 @@ if __name__ == "__main__":
             print(unified_ids)
 
             query_embedding = fuzzqe_model(batched_query)
-            # result_logs = fuzzqe_model.evaluate_entailment(query_embedding, train_answers)
-            # print(result_logs)
-
+           
             result_logs = fuzzqe_model.evaluate_generalization(query_embedding, valid_answers, test_answers)
             print(result_logs)
 
@@ -463,10 +498,22 @@ if __name__ == "__main__":
             all_constraints = [ occurential_constraints[i] + temporal_constraints[i] for i in range(len(temporal_constraints))]
 
             query_embedding = fuzzqe_con_model(batched_query, all_constraints)
-            # result_logs = fuzzqe_model.evaluate_entailment(query_embedding, train_answers)
-            # print(result_logs)
-
+         
             result_logs = fuzzqe_con_model.evaluate_generalization(query_embedding, valid_answers, test_answers)
             print(result_logs)
+
+            query_embedding = fuzzqe_con_model_r1(batched_query, all_constraints)
+            print(query_embedding.shape)
+
+            result_logs = fuzzqe_con_model_r1.evaluate_generalization(query_embedding, valid_answers, test_answers)
+            print(result_logs)
+
+            query_embedding = fuzzqe_con_model_r2(batched_query, all_constraints)
+            print(query_embedding.shape)
+
+            result_logs = fuzzqe_con_model_r2.evaluate_generalization(query_embedding, valid_answers, test_answers)
+            print(result_logs)
+
+
 
             break

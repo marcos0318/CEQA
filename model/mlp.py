@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 import dataloader
 import model
 
-from model import LabelSmoothingLoss, ConstraintFuser
+from model import LabelSmoothingLoss, ConstraintFuser, ConstraintFuserNoMLP, ConstraintFuserRandomInput
 
 
 from functools import reduce
@@ -498,7 +498,23 @@ class ConstraintMLPReasoner(MLPReasoner):
 
         else:
             return self.loss_fnt(this_query_result, label)
-           
+
+
+class ConstraintMLPReasonerNoMLP(ConstraintMLPReasoner):
+
+    def __init__(self, num_entities, num_relations, embedding_size, label_smoothing=0.3, dropout_rate=0.3, value_vocab=None):
+        super().__init__(num_entities, num_relations, embedding_size, label_smoothing, dropout_rate, value_vocab)
+
+        self.constraint_fuser = ConstraintFuserNoMLP(self.relation_embedding, self.entity_embedding, num_entities, num_relations, embedding_size)
+
+
+
+class ConstraintMLPReasonerRandomInput(ConstraintMLPReasoner):
+
+    def __init__(self, num_entities, num_relations, embedding_size, label_smoothing=0.3, dropout_rate=0.3, value_vocab=None):
+        super().__init__(num_entities, num_relations, embedding_size, label_smoothing, dropout_rate, value_vocab)
+
+        self.constraint_fuser = ConstraintFuserRandomInput(self.relation_embedding, self.entity_embedding, num_entities, num_relations, embedding_size)
 
 def test_mlp():
     sample_data_path = "../sampled_data_same/"
@@ -524,8 +540,14 @@ def test_mlp():
         nrelation = int(entrel[1].split(' ')[-1])
 
     gqe_model = ConstraintMLPReasoner(num_entities=nentity, num_relations=nrelation, embedding_size=384)
+    gqe_model_r1 = ConstraintMLPReasonerNoMLP(num_entities=nentity, num_relations=nrelation, embedding_size=384)
+    gqe_model_r2 = ConstraintMLPReasonerRandomInput(num_entities=nentity, num_relations=nrelation, embedding_size=384)
+
     if torch.cuda.is_available():
         gqe_model = gqe_model.cuda()
+        gqe_model_r1 = gqe_model_r1.cuda()
+        gqe_model_r2 = gqe_model_r2.cuda()
+
 
     batch_size = 5
     train_iterators = {}
@@ -551,11 +573,12 @@ def test_mlp():
         print(unified_ids)
         print(positive_sample)
 
-        query_embedding = gqe_model(batched_query)
+        query_embedding = gqe_model(batched_query, )
         print(query_embedding.shape)
         loss = gqe_model(batched_query, positive_sample)
         print(loss)
 
+       
     validation_loaders = {}
     for query_type, query_answer_dict in valid_data_dict.items():
 
@@ -589,6 +612,8 @@ def test_mlp():
             result_logs = gqe_model.evaluate_generalization(query_embedding, train_answers, valid_answers)
             print(result_logs)
 
+         
+
             break
 
     test_loaders = {}
@@ -620,6 +645,8 @@ def test_mlp():
 
             result_logs = gqe_model.evaluate_generalization(query_embedding, valid_answers, test_answers)
             print(result_logs)
+
+            
 
             print(train_answers[0])
             print([len(_) for _ in train_answers])
@@ -704,12 +731,6 @@ def test_mlp_mixer():
         nrelation = int(entrel[1].split(' ')[-1])
     
 
-    # Load sentences & embeddings from disc
-    with open('../_eventuality_embeddings.pkl', "rb") as fIn:
-        eventualities_dict = pickle.load(fIn)
-
-    with open('../_relation_embeddings.pkl', "rb") as fIn:
-        relations_dict = pickle.load(fIn)
 
 
 
@@ -722,13 +743,18 @@ def test_mlp_mixer():
         id2relation = {v: k for k, v in relation2id.items()}
 
     gqe_model = ConstraintMLPReasoner(num_entities=nentity, num_relations=nrelation, embedding_size=384)
+
+    gqe_model_r1 = ConstraintMLPReasonerNoMLP(num_entities=nentity, num_relations=nrelation, embedding_size=384)
+    gqe_model_r2 = ConstraintMLPReasonerRandomInput(num_entities=nentity, num_relations=nrelation, embedding_size=384)
+
     if torch.cuda.is_available():
         gqe_model = gqe_model.cuda()
+        gqe_model_r1 = gqe_model_r1.cuda()
+        gqe_model_r2 = gqe_model_r2.cuda()
+    
     
 
-    semantic_gqe_model = SemanticMLPReasoner(num_entities=nentity, num_relations=nrelation, embedding_size=384,
-                                          eventualities_dict=eventualities_dict, relations_dict=relations_dict, id2eventuality=id2eventuality, id2relation=id2relation )
-
+   
     batch_size = 5
     train_iterators = {}
     for query_type, query_answer_dict in train_data_dict.items():
@@ -760,10 +786,18 @@ def test_mlp_mixer():
         print(query_embedding.shape)
         loss = gqe_model(batched_query,all_constraints, positive_sample)
 
-        query_embedding = semantic_gqe_model(batched_query)
+
+        query_embedding = gqe_model_r1(batched_query, all_constraints)
         print(query_embedding.shape)
-        loss = semantic_gqe_model(batched_query, positive_sample)
+        loss = gqe_model_r1(batched_query, all_constraints, positive_sample)
         print(loss)
+
+        query_embedding = gqe_model_r2(batched_query, all_constraints)
+        print(query_embedding.shape)
+        loss = gqe_model_r2(batched_query, all_constraints, positive_sample)
+        print(loss)
+
+        
 
     validation_loaders = {}
     for query_type, query_answer_dict in valid_data_dict.items():
@@ -797,6 +831,8 @@ def test_mlp_mixer():
 
             query_embedding = gqe_model(batched_query, all_constraints)
 
+            
+
             print("valid_answers")
             print(valid_answers)
             print("train_answers")
@@ -805,9 +841,23 @@ def test_mlp_mixer():
             result_logs = gqe_model.evaluate_generalization(query_embedding, train_answers, valid_answers)
             print(result_logs)
 
-            query_embedding = semantic_gqe_model(batched_query)
-            result_logs = semantic_gqe_model.evaluate_generalization(query_embedding, train_answers, valid_answers)
+
+            query_embedding = gqe_model_r1(batched_query, all_constraints)
+       
+            result_logs = gqe_model_r1.evaluate_generalization(query_embedding, train_answers, valid_answers)
             print(result_logs)
+
+            query_embedding = gqe_model_r2(batched_query, all_constraints)
+
+
+            result_logs = gqe_model_r2.evaluate_generalization(query_embedding, train_answers, valid_answers)
+            print(result_logs)
+
+
+
+            
+
+
 
             break
 
@@ -847,10 +897,20 @@ def test_mlp_mixer():
             print([len(_) for _ in valid_answers])
             print([len(_) for _ in test_answers])
 
-            query_embedding = semantic_gqe_model(batched_query)
 
-            result_logs = semantic_gqe_model.evaluate_generalization(query_embedding, valid_answers, test_answers)
+            query_embedding = gqe_model_r1(batched_query, all_constraints)
+       
+
+            result_logs = gqe_model_r1.evaluate_generalization(query_embedding, valid_answers, test_answers)
             print(result_logs)
+
+            query_embedding = gqe_model_r2(batched_query, all_constraints)
+ 
+
+            result_logs = gqe_model_r2.evaluate_generalization(query_embedding, valid_answers, test_answers)
+            print(result_logs)
+
+            
 
             break
 
