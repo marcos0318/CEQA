@@ -139,12 +139,7 @@ if __name__ == "__main__":
     print("Training query types: ", training_query_types)
 
 
-    # Load sentences & embeddings from disc
-    with open('../_eventuality_embeddings.pkl', "rb") as fIn:
-        eventualities_dict = pickle.load(fIn)
 
-    with open('../_relation_embeddings.pkl', "rb") as fIn:
-        relations_dict = pickle.load(fIn)
 
     with open("../query_data_filtered/eventuality2id.json", "r") as f:
         eventuality2id = json.load(f)
