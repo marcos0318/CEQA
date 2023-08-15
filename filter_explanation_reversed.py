@@ -256,7 +256,8 @@ if __name__ == "__main__":
     directory = "./query_data/"
 
     for filename in tqdm(os.listdir(directory)):
-
+        if len(filename.split("_")) < 2:
+            continue
         query_type = filename.split("_")[-2]
        
 
