@@ -161,8 +161,8 @@ def filter_test_answers(sample):
 if __name__ == "__main__":
 
 
-    input_graph_names = [["/home/data/jbai/aser_graph/aser50k_train.pickle",
-    "/home/data/jbai/aser_graph/aser50k_valid.pickle", "/home/data/jbai/aser_graph/aser50k_test.pickle"]]
+    input_graph_names = [["./aser50k_train.pickle",
+    "./aser50k_valid.pickle", "./aser50k_test.pickle"]]
 
     train_graph_name, valid_graph_name, test_graph_name = input_graph_names[0]
 
