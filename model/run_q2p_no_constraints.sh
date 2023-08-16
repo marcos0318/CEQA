@@ -3,6 +3,6 @@ CUDA_VISIBLE_DEVICES=7 python ./train.py \
    --train_query_dir /home/jbai/logical_aser/query_data_filtered_reversed/query_data_train_filtered.json \
     --valid_query_dir /home/jbai/logical_aser/query_data_filtered_reversed/query_data_valid_filtered.json \
     --test_query_dir /home/jbai/logical_aser/query_data_filtered_reversed/query_data_test_filtered.json \
-    --checkpoint_path /home/data/jbai/aser_reasoning_logs \
+    --checkpoint_path /home/data/jbai/aser_reasoning_logs_no_constraints \
     -b 256 \
     -lr 0.001 
