@@ -73,26 +73,26 @@ def filter_train_answers(sample):
 
     explanation_tuples = sample["train_explanation_tuples"]
 
-    occurential_constraints = sample["occurential_tuples"]
-    termporal_constraints = sample["temporal_tuples"]
+    # occurential_constraints = sample["occurential_tuples"]
+    # termporal_constraints = sample["temporal_tuples"]
 
     train_answers = sample["train_answers"]
 
-    exp_tuples = [e + occurential_constraints + termporal_constraints for e in explanation_tuples]
+    # exp_tuples = [e + occurential_constraints + termporal_constraints for e in explanation_tuples]
 
-    filtered_answers = []
-    filtered_explanations = []
+    # filtered_answers = []
+    # filtered_explanations = []
 
-    for answer_id, explanation_tuple in enumerate(exp_tuples):
-        isLogical = verify_discourse(explanation_tuple)
-        isTemporalLogical = verify_temporal(explanation_tuple)
+    # for answer_id, explanation_tuple in enumerate(exp_tuples):
+    #     isLogical = verify_discourse(explanation_tuple)
+    #     isTemporalLogical = verify_temporal(explanation_tuple)
 
-        if isLogical != -1 and isTemporalLogical != -1:
-            filtered_answers.append(train_answers[answer_id])
-            filtered_explanations.append(explanation_tuple)
+    #     if isLogical != -1 and isTemporalLogical != -1:
+    #         filtered_answers.append(train_answers[answer_id])
+    #         filtered_explanations.append(explanation_tuple)
     
-    sample["train_answers_filtered"] = filtered_answers
-    sample["train_explanation_tuples_filtered"] = filtered_explanations
+    sample["train_answers_filtered"] = train_answers
+    sample["train_explanation_tuples_filtered"] = explanation_tuples
 
     return sample
 
@@ -105,22 +105,22 @@ def filter_validation_answers(sample):
 
     validation_answers = sample["valid_answers"]
 
-    exp_tuples = [e + occurential_constraints + termporal_constraints for e in explanation_tuples]
+    # exp_tuples = [e + occurential_constraints + termporal_constraints for e in explanation_tuples]
 
 
-    filtered_answers = []
-    filtered_explanations = []
+    # filtered_answers = []
+    # filtered_explanations = []
 
-    for answer_id, explanation_tuple in enumerate(exp_tuples):
-        isLogical = verify_discourse(explanation_tuple)
-        isTemporalLogical = verify_temporal(explanation_tuple)
+    # for answer_id, explanation_tuple in enumerate(exp_tuples):
+    #     isLogical = verify_discourse(explanation_tuple)
+    #     isTemporalLogical = verify_temporal(explanation_tuple)
 
-        if isLogical != -1 and isTemporalLogical != -1:
-            filtered_answers.append(validation_answers[answer_id])
-            filtered_explanations.append(explanation_tuple)
+    #     if isLogical != -1 and isTemporalLogical != -1:
+    #         filtered_answers.append(validation_answers[answer_id])
+    #         filtered_explanations.append(explanation_tuple)
     
-    sample["valid_answers_filtered"] = filtered_answers
-    sample["valid_explanation_tuples_filtered"] = filtered_explanations
+    sample["valid_answers_filtered"] = validation_answers
+    sample["valid_explanation_tuples_filtered"] = explanation_tuples
 
     return sample
 
@@ -128,28 +128,28 @@ def filter_test_answers(sample):
     
     explanation_tuples = sample["test_explanation_tuples"]
 
-    occurential_constraints = sample["occurential_tuples"]
-    termporal_constraints = sample["temporal_tuples"]
+    # occurential_constraints = sample["occurential_tuples"]
+    # termporal_constraints = sample["temporal_tuples"]
 
     test_answers = sample["test_answers"]
 
-    exp_tuples = [e + occurential_constraints + termporal_constraints for e in explanation_tuples]
+    # exp_tuples = [e + occurential_constraints + termporal_constraints for e in explanation_tuples]
 
    
 
-    filtered_answers = []
-    filtered_explanations = []
+    # filtered_answers = []
+    # filtered_explanations = []
 
-    for answer_id, explanation_tuple in enumerate(exp_tuples):
-        isLogical = verify_discourse(explanation_tuple)
-        isTemporalLogical = verify_temporal(explanation_tuple)
+    # for answer_id, explanation_tuple in enumerate(exp_tuples):
+    #     isLogical = verify_discourse(explanation_tuple)
+    #     isTemporalLogical = verify_temporal(explanation_tuple)
 
-        if isLogical != -1 and isTemporalLogical != -1:
-            filtered_answers.append(test_answers[answer_id])
-            filtered_explanations.append(explanation_tuple)
+    #     if isLogical != -1 and isTemporalLogical != -1:
+    #         filtered_answers.append(test_answers[answer_id])
+    #         filtered_explanations.append(explanation_tuple)
     
-    sample["test_answers_filtered"] = filtered_answers
-    sample["test_explanation_tuples_filtered"] = filtered_explanations
+    sample["test_answers_filtered"] = test_answers
+    sample["test_explanation_tuples_filtered"] = explanation_tuples
 
     return sample
 
@@ -300,35 +300,37 @@ if __name__ == "__main__":
     print("Total validation queries: ", len(result_validation_queries))
     print("Total test queries: ", len(result_test_queries))
 
-    print("Removing empty and trivial queries")
-    result_train_queries = [q for q in result_train_queries if len(q["train_answers_filtered"]) > 0 and len(q["train_answers_filtered"]) == len(q["train_answers"])]
-    result_validation_queries = [q for q in result_validation_queries if len(q["valid_answers_filtered"]) > 0 and len(q["valid_answers_filtered"]) == len(q["valid_answers"])]
-    result_test_queries = [q for q in result_test_queries if len(q["test_answers_filtered"]) > 0 and len(q["test_answers_filtered"]) == len(q["test_answers"])]
-    print("Total train queries: ", len(result_train_queries))
-    print("Total validation queries: ", len(result_validation_queries))
-    print("Total test queries: ", len(result_test_queries))
+    # print("Removing empty and trivial queries")
+    # result_train_queries = [q for q in result_train_queries if len(q["train_answers_filtered"]) > 0 and len(q["train_answers_filtered"]) == len(q["train_answers"])]
+    # result_validation_queries = [q for q in result_validation_queries if len(q["valid_answers_filtered"]) > 0 and len(q["valid_answers_filtered"]) == len(q["valid_answers"])]
+    # result_test_queries = [q for q in result_test_queries if len(q["test_answers_filtered"]) > 0 and len(q["test_answers_filtered"]) == len(q["test_answers"])]
+    # print("Total train queries: ", len(result_train_queries))
+    # print("Total validation queries: ", len(result_validation_queries))
+    # print("Total test queries: ", len(result_test_queries))
 
 
-    train_answer_length = []
-    train_filtered_answer_length = []
-    valid_answer_length = []
-    valid_filtered_answer_length = []
-    test_answer_length = []
-    test_filtered_answer_length = []
-    for query in result_test_queries:
-        test_answer_length.append(len(query["test_answers"]))
-        test_filtered_answer_length.append(len(query["test_answers_filtered"]))
-        valid_answer_length.append(len(query["valid_answers"]))
-        valid_filtered_answer_length.append(len(query["valid_answers_filtered"]))
-        train_answer_length.append(len(query["train_answers"]))
-        train_filtered_answer_length.append(len(query["train_answers_filtered"]))
+
+
+    # train_answer_length = []
+    # train_filtered_answer_length = []
+    # valid_answer_length = []
+    # valid_filtered_answer_length = []
+    # test_answer_length = []
+    # test_filtered_answer_length = []
+    # for query in result_test_queries:
+    #     test_answer_length.append(len(query["test_answers"]))
+    #     test_filtered_answer_length.append(len(query["test_answers_filtered"]))
+    #     valid_answer_length.append(len(query["valid_answers"]))
+    #     valid_filtered_answer_length.append(len(query["valid_answers_filtered"]))
+    #     train_answer_length.append(len(query["train_answers"]))
+    #     train_filtered_answer_length.append(len(query["train_answers_filtered"]))
     
-    print("Train answer length: ", np.mean(train_answer_length))
-    print("Train filtered answer length: ", np.mean(train_filtered_answer_length))
-    print("Valid answer length: ", np.mean(valid_answer_length))
-    print("Valid filtered answer length: ", np.mean(valid_filtered_answer_length))
-    print("Test answer length: ", np.mean(test_answer_length))
-    print("Test filtered answer length: ", np.mean(test_filtered_answer_length))
+    # print("Train answer length: ", np.mean(train_answer_length))
+    # print("Train filtered answer length: ", np.mean(train_filtered_answer_length))
+    # print("Valid answer length: ", np.mean(valid_answer_length))
+    # print("Valid filtered answer length: ", np.mean(valid_filtered_answer_length))
+    # print("Test answer length: ", np.mean(test_answer_length))
+    # print("Test filtered answer length: ", np.mean(test_filtered_answer_length))
 
 
     print("Start converting to ids")
